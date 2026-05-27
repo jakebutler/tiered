@@ -15,5 +15,13 @@ dependencies = [
   "python-dotenv>=1.0.1",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[project.scripts]
+tiered-research = "bright_research_agent.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
