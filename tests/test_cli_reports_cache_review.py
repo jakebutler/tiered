@@ -142,6 +142,7 @@ def test_review_export_and_summary(tmp_path):
     assert summary["reviewed_rows"] == 1
     assert summary["tier_disagreement_count"] == 1
     assert summary["support_quality_counts"]["partial"] == 1
+    assert "reviewer_tier" in summary["fields_for_human_review"]
     assert "automated_tier" in summary["fields_for_human_review"]
 
 
@@ -182,3 +183,79 @@ def test_bright_data_serp_only_collector_does_not_require_unlocker(monkeypatch):
     assert substrate.errors == []
     assert substrate.sources[0].source_tier_label == "Tier 1 Source"
     assert substrate.sources[0].content == "FDA label snippet"
+
+
+def test_review_export_escapes_spreadsheet_formula_cells(tmp_path):
+    benchmark_results = {
+        "cases": [
+            {
+                "id": "=case",
+                "question": "+question",
+                "claim_domain": "@domain",
+                "baseline": {
+                    "evidence_substrate": {
+                        "sources": [
+                            {
+                                "url": "-https://example.com",
+                                "title": "=title",
+                                "source_tier_label": "Tier 1 Source",
+                                "source_class": "official_regulator",
+                            }
+                        ]
+                    }
+                },
+                "tiered": {"evidence_substrate": {"sources": []}},
+            }
+        ]
+    }
+    csv_path = tmp_path / "review.csv"
+
+    export_review_csv(benchmark_results, csv_path)
+    row = next(csv.DictReader(csv_path.open()))
+
+    assert row["case_id"] == "'=case"
+    assert row["question"] == "'+question"
+    assert row["claim_domain"] == "'@domain"
+    assert row["source_url"] == "'-https://example.com"
+    assert row["source_title"] == "'=title"
+
+
+def test_baseline_keeps_provider_rank_order_while_tiered_ranks_by_authority():
+    policy = build_policy(ClaimDomain.HEALTHCARE)
+
+    baseline = asyncio.run(
+        OfflineEvidenceCollector().collect(
+            "Is Ozempic indicated?",
+            "baseline",
+            policy,
+        )
+    )
+    tiered = asyncio.run(
+        OfflineEvidenceCollector().collect(
+            "Is Ozempic indicated?",
+            "tiered",
+            policy,
+        )
+    )
+
+    assert [source.source_tier.value for source in baseline.sources] == [
+        "tier_3",
+        "tier_3",
+        "tier_2",
+    ]
+    assert tiered.sources[0].source_tier.value == "tier_1"
+
+
+def test_source_class_is_derived_from_policy_rule_not_tier_only():
+    policy = build_policy(ClaimDomain.FINANCIAL)
+    substrate = asyncio.run(
+        OfflineEvidenceCollector().collect(
+            "What did Apple report for annual revenue?",
+            "tiered",
+            policy,
+        )
+    )
+
+    assert substrate.sources[0].source_tier.value == "tier_1"
+    assert substrate.sources[0].source_class == "sec_filing"
+    assert all("regulator_or_approved_label" != source.source_class for source in substrate.sources)

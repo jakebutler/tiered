@@ -135,7 +135,7 @@ class OfflineEvidenceCollector:
             question=question,
             run_type=run_type,
             claim_domain=policy.claim_domain.value,
-            sources=sources,
+            sources=_order_sources(run_type, sources),
             queries=_queries_for_run(question, run_type, policy),
             metadata={
                 "collector": "offline",
@@ -194,10 +194,20 @@ class BrightDataEvidenceCollector:
                         _evidence_item_from_serp_result(
                             result,
                             policy.tier_for_url(result.get("url") or ""),
+                            policy.source_class_for_url(result.get("url") or ""),
                         )
                         for result in deduped
                     ]
-                ),
+                )
+                if run_type == "tiered"
+                else [
+                    _evidence_item_from_serp_result(
+                        result,
+                        policy.tier_for_url(result.get("url") or ""),
+                        policy.source_class_for_url(result.get("url") or ""),
+                    )
+                    for result in deduped
+                ],
                 queries=query_specs,
                 metadata={
                     "collector": "bright_data_serp_only",
@@ -224,6 +234,7 @@ class BrightDataEvidenceCollector:
             tier = policy.tier_for_url(url) if run_type == "tiered" else SourceTier.NOT_ACCEPTED
             if run_type == "baseline":
                 tier = policy.tier_for_url(url)
+            source_class = policy.source_class_for_url(url)
             provider_metadata = ProviderMetadata(
                 provider="bright_data",
                 confidence=_coerce_confidence(result.get("confidence")),
@@ -243,7 +254,7 @@ class BrightDataEvidenceCollector:
                         snippet=result.get("description") or "",
                         source_tier=tier,
                         source_tier_label=TIER_LABELS[tier],
-                        source_class=_source_class_for_tier(tier),
+                        source_class=source_class,
                         provider_metadata=provider_metadata,
                         retrieval_error=str(page),
                     )
@@ -257,7 +268,7 @@ class BrightDataEvidenceCollector:
                         content=page.get("content", ""),
                         source_tier=tier,
                         source_tier_label=TIER_LABELS[tier],
-                        source_class=_source_class_for_tier(tier),
+                        source_class=source_class,
                         provider_metadata=provider_metadata,
                     )
                 )
@@ -266,7 +277,7 @@ class BrightDataEvidenceCollector:
             question=question,
             run_type=run_type,
             claim_domain=policy.claim_domain.value,
-            sources=_rank_sources(sources),
+            sources=_order_sources(run_type, sources),
             queries=query_specs,
             metadata={
                 "collector": "bright_data",
@@ -345,23 +356,16 @@ def _offline_sources(
     policy: SourceAuthorityPolicy,
 ) -> list[EvidenceItem]:
     if run_type == "baseline":
-        urls = [
-            ("https://www.healthline.com/health/drugs/demo-drug", "Healthline drug overview", SourceTier.TIER_3, 0.91),
-            ("https://www.goodrx.com/demo-drug/what-is", "GoodRx consumer summary", SourceTier.TIER_3, 0.87),
-            ("https://medlineplus.gov/druginfo/meds/demo.html", "MedlinePlus drug information", SourceTier.TIER_2, 0.72),
-        ]
+        urls = _fixture_sources_for_policy(policy, (SourceTier.TIER_3, SourceTier.TIER_3, SourceTier.TIER_2))
     else:
-        urls = [
-            ("https://www.accessdata.fda.gov/drugsatfda_docs/label/demo-label.pdf", "FDA approved prescribing information", SourceTier.TIER_1, 0.82),
-            ("https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=demo", "DailyMed official label", SourceTier.TIER_1, 0.78),
-            ("https://medlineplus.gov/druginfo/meds/demo.html", "MedlinePlus clinical summary", SourceTier.TIER_2, 0.69),
-            ("https://www.drugs.com/demo.html", "Drugs.com consumer summary", SourceTier.TIER_3, 0.88),
-        ]
+        urls = _fixture_sources_for_policy(
+            policy,
+            (SourceTier.TIER_1, SourceTier.TIER_1, SourceTier.TIER_2, SourceTier.TIER_3),
+        )
 
     items = []
-    for rank, (url, title, tier, confidence) in enumerate(urls, start=1):
-        policy_tier = policy.tier_for_url(url)
-        tier = policy_tier if policy_tier is not SourceTier.NOT_ACCEPTED else tier
+    for rank, (url, title, confidence) in enumerate(urls, start=1):
+        tier = policy.tier_for_url(url)
         items.append(
             EvidenceItem(
                 url=url,
@@ -373,7 +377,7 @@ def _offline_sources(
                 ),
                 source_tier=tier,
                 source_tier_label=TIER_LABELS[tier],
-                source_class=_source_class_for_tier(tier),
+                source_class=policy.source_class_for_url(url),
                 provider_metadata=ProviderMetadata(
                     provider="offline_fixture",
                     confidence=confidence,
@@ -381,7 +385,29 @@ def _offline_sources(
                 ),
             )
         )
-    return _rank_sources(items)
+    return items
+
+
+def _fixture_sources_for_policy(
+    policy: SourceAuthorityPolicy,
+    tiers: tuple[SourceTier, ...],
+) -> list[tuple[str, str, float]]:
+    used: dict[SourceTier, int] = {}
+    results = []
+    for index, tier in enumerate(tiers, start=1):
+        rules = [rule for rule in policy.tier_rules if rule.tier is tier]
+        count = used.get(tier, 0)
+        rule = rules[min(count, len(rules) - 1)]
+        used[tier] = count + 1
+        host = _fixture_host(rule.host_patterns[count % len(rule.host_patterns)])
+        results.append(
+            (
+                f"https://{host}/demo-{tier.value}-{index}",
+                f"{rule.source_class.replace('_', ' ').title()} fixture",
+                0.95 - (index * 0.05),
+            )
+        )
+    return results
 
 
 def _rank_sources(sources: list[EvidenceItem]) -> list[EvidenceItem]:
@@ -400,6 +426,12 @@ def _rank_sources(sources: list[EvidenceItem]) -> list[EvidenceItem]:
     )
 
 
+def _order_sources(run_type: str, sources: list[EvidenceItem]) -> list[EvidenceItem]:
+    if run_type == "baseline":
+        return sources
+    return _rank_sources(sources)
+
+
 def _source_class_for_tier(tier: SourceTier) -> str:
     if tier is SourceTier.TIER_1:
         return "regulator_or_approved_label"
@@ -408,6 +440,17 @@ def _source_class_for_tier(tier: SourceTier) -> str:
     if tier is SourceTier.TIER_3:
         return "generic_health_explainer"
     return "not_accepted"
+
+
+def _fixture_host(pattern: str) -> str:
+    normalized = pattern.strip().lstrip(".")
+    if normalized.startswith("http"):
+        return normalized.split("://", 1)[1].strip("/")
+    if normalized.endswith("."):
+        return f"{normalized}example.com"
+    if "." not in normalized:
+        return f"{normalized}.example.com"
+    return normalized
 
 
 def _cache_key(
@@ -461,6 +504,7 @@ def _dedupe_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _evidence_item_from_serp_result(
     result: dict[str, Any],
     tier: SourceTier,
+    source_class: str,
 ) -> EvidenceItem:
     description = result.get("description") or ""
     return EvidenceItem(
@@ -470,7 +514,7 @@ def _evidence_item_from_serp_result(
         content=description,
         source_tier=tier,
         source_tier_label=TIER_LABELS[tier],
-        source_class=_source_class_for_tier(tier),
+        source_class=source_class,
         provider_metadata=ProviderMetadata(
             provider="bright_data_serp",
             confidence=_coerce_confidence(result.get("confidence")),

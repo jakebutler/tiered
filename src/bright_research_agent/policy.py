@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import Enum
+from typing import Optional
 from urllib.parse import urlparse
 
 
@@ -31,6 +32,7 @@ TIER_LABELS = {
 @dataclass(frozen=True)
 class SourceTierRule:
     tier: SourceTier
+    source_class: str
     description: str
     host_patterns: tuple[str, ...]
     query_modifiers: tuple[str, ...]
@@ -66,11 +68,19 @@ class SourceAuthorityPolicy:
     expected_source_classes: tuple[str, ...]
 
     def tier_for_url(self, url: str) -> SourceTier:
+        rule = self.rule_for_url(url)
+        return rule.tier if rule else SourceTier.NOT_ACCEPTED
+
+    def source_class_for_url(self, url: str) -> str:
+        rule = self.rule_for_url(url)
+        return rule.source_class if rule else "not_accepted"
+
+    def rule_for_url(self, url: str) -> Optional[SourceTierRule]:
         host = normalized_host(url)
         for rule in self.tier_rules:
             if any(pattern in host for pattern in rule.host_patterns):
-                return rule.tier
-        return SourceTier.NOT_ACCEPTED
+                return rule
+        return None
 
     def generate_queries(self, question: str) -> list[TieredSERPQuery]:
         queries: list[TieredSERPQuery] = []
@@ -120,12 +130,24 @@ def build_policy(domain: ClaimDomain) -> SourceAuthorityPolicy:
             tier_rules=(
                 SourceTierRule(
                     tier=SourceTier.TIER_1,
+                    source_class="regulator_or_approved_label",
                     description="Regulator, approved label, or manufacturer material.",
                     host_patterns=(
                         "fda.gov",
                         "accessdata.fda.gov",
                         "labels.fda.gov",
                         "dailymed.nlm.nih.gov",
+                    ),
+                    query_modifiers=(
+                        "FDA label prescribing information",
+                        "DailyMed official label",
+                    ),
+                ),
+                SourceTierRule(
+                    tier=SourceTier.TIER_1,
+                    source_class="manufacturer_medical_information",
+                    description="Manufacturer medical information or prescribing material.",
+                    host_patterns=(
                         "pfizer.com",
                         "lilly.com",
                         "merck.com",
@@ -138,12 +160,12 @@ def build_policy(domain: ClaimDomain) -> SourceAuthorityPolicy:
                         "amgen.com",
                     ),
                     query_modifiers=(
-                        "FDA label prescribing information",
-                        "DailyMed official label",
+                        "manufacturer prescribing information",
                     ),
                 ),
                 SourceTierRule(
                     tier=SourceTier.TIER_2,
+                    source_class="reputable_medical_reference",
                     description="Reputable clinical or medical reference source.",
                     host_patterns=(
                         "nih.gov",
@@ -162,6 +184,7 @@ def build_policy(domain: ClaimDomain) -> SourceAuthorityPolicy:
                 ),
                 SourceTierRule(
                     tier=SourceTier.TIER_3,
+                    source_class="generic_health_explainer",
                     description="Generic health explainer useful for discovery only.",
                     host_patterns=(
                         "webmd.com",
@@ -235,9 +258,9 @@ def _simple_policy(
         rationale=rationale,
         expected_source_classes=expected,
         tier_rules=(
-            SourceTierRule(SourceTier.TIER_1, "Primary or official authority.", tier1, (modifiers[0],)),
-            SourceTierRule(SourceTier.TIER_2, "Reputable secondary authority.", tier2, (modifiers[1],)),
-            SourceTierRule(SourceTier.TIER_3, "Discovery or low-authority context.", tier3, ("summary explainer",)),
+            SourceTierRule(SourceTier.TIER_1, expected[0], "Primary or official authority.", tier1, (modifiers[0],)),
+            SourceTierRule(SourceTier.TIER_2, expected[1], "Reputable secondary authority.", tier2, (modifiers[1],)),
+            SourceTierRule(SourceTier.TIER_3, expected[-1], "Discovery or low-authority context.", tier3, ("summary explainer",)),
         ),
     )
 
@@ -273,4 +296,3 @@ def classify_claim_domain(question: str) -> ClaimDomain:
 
 def policy_for_question(question: str) -> SourceAuthorityPolicy:
     return build_policy(classify_claim_domain(question))
-

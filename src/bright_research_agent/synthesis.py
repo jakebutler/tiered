@@ -37,14 +37,16 @@ def synthesize_report(
         evidence_gaps.append("One or more evidence collection steps failed; inspect run metadata before making strong claims.")
 
     answer = _answer_text(substrate, tier1_sources, tier2_sources)
-    claims = [
-        ResearchClaim(
-            claim=_claim_text(substrate, tier1_sources, tier2_sources),
-            confidence="medium" if acceptable_sources else "low",
-            supported=bool(acceptable_sources),
-            citations=[_citation(source) for source in cited_sources],
-        )
-    ]
+    claims = [_source_claim(substrate, source) for source in cited_sources]
+    if not claims:
+        claims = [
+            ResearchClaim(
+                claim=_claim_text(substrate, tier1_sources, tier2_sources),
+                confidence="low",
+                supported=False,
+                citations=[],
+            )
+        ]
     if substrate.run_type == "tiered":
         claims.append(
             ResearchClaim(
@@ -54,7 +56,7 @@ def synthesize_report(
                 ),
                 confidence="high",
                 supported=True,
-                citations=[_citation(source) for source in cited_sources[:3]],
+                citations=[_citation(source) for source in cited_sources[:1]],
             )
         )
 
@@ -148,4 +150,17 @@ def _citation(source: EvidenceItem) -> Citation:
         source_class=source.source_class,
         provider_metadata=provider_metadata,
         retrieval_error=source.retrieval_error,
+    )
+
+
+def _source_claim(substrate: EvidenceSubstrate, source: EvidenceItem) -> ResearchClaim:
+    supported = source.source_tier in (SourceTier.TIER_1, SourceTier.TIER_2)
+    return ResearchClaim(
+        claim=(
+            f"{source.title} provides {source.source_tier_label} evidence for the Research Question: "
+            f"{substrate.question}"
+        ),
+        confidence="medium" if supported else "low",
+        supported=supported,
+        citations=[_citation(source)],
     )

@@ -78,3 +78,61 @@ def test_healthcare_benchmark_runs_with_fixture_collector():
 
     assert results["benchmark"]["question_count"] == 2
     assert results["summary"]["tiered_authority_coverage"] > results["summary"]["baseline_authority_coverage"]
+
+
+def test_benchmark_limit_zero_runs_zero_cases():
+    results = asyncio.run(
+        run_benchmark(
+            OfflineEvidenceCollector(),
+            domains=[ClaimDomain.HEALTHCARE],
+            limit=0,
+        )
+    )
+
+    assert results["benchmark"]["question_count"] == 0
+    assert results["cases"] == []
+
+
+def test_score_run_uses_claim_count_not_citation_count():
+    run_output = {
+        "evidence_substrate": {"sources": []},
+        "report": {
+            "key_findings": [
+                {
+                    "supported": True,
+                    "citations": [
+                        {"source_tier": "Tier 1 Source"},
+                        {"source_tier": "Tier 2 Source"},
+                        {"source_tier": "Tier 3 Source"},
+                    ],
+                },
+                {"supported": True, "citations": [{"source_tier": "Tier 3 Source"}]},
+            ],
+            "evidence_gaps": [],
+        },
+    }
+
+    score = score_run(run_output)
+
+    assert score["authority_coverage"] == 0.5
+    assert score["acceptable_citation_count"] == 2
+    assert score["total_citation_count"] == 4
+
+
+def test_score_run_falls_back_to_valid_evidence_sources_without_report_claims():
+    run_output = {
+        "evidence_substrate": {
+            "sources": [
+                {"source_tier": "tier_1"},
+                {"source_tier": "tier_3"},
+                {"source_tier": "tier_1", "retrieval_error": "failed"},
+            ],
+        },
+        "report": {"key_findings": [], "evidence_gaps": []},
+    }
+
+    score = score_run(run_output)
+
+    assert score["authority_coverage"] == 0.5
+    assert score["acceptable_citation_count"] == 1
+    assert score["total_citation_count"] == 2

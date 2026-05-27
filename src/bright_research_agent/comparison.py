@@ -63,7 +63,7 @@ async def run_benchmark(
     limit: int | None = None,
 ) -> dict[str, Any]:
     questions = benchmark_questions(domains)
-    if limit:
+    if limit is not None:
         questions = questions[:limit]
     cases = []
     for question in questions:

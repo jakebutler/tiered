@@ -29,7 +29,8 @@ def export_review_csv(benchmark_results: dict[str, Any], path: Path) -> None:
             for run_type in ("baseline", "tiered"):
                 for source in case[run_type]["evidence_substrate"].get("sources", []):
                     writer.writerow(
-                        {
+                        _escape_csv_row(
+                            {
                             "case_id": case["id"],
                             "run_type": run_type,
                             "question": case["question"],
@@ -42,6 +43,7 @@ def export_review_csv(benchmark_results: dict[str, Any], path: Path) -> None:
                             "support_quality": "",
                             "notes": "",
                         }
+                        )
                     )
 
 
@@ -62,6 +64,7 @@ def summarize_review_csv(path: Path) -> dict[str, Any]:
         "fields_for_human_review": [
             "automated_tier",
             "automated_source_class",
+            "reviewer_tier",
             "support_quality",
             "notes",
         ],
@@ -74,3 +77,14 @@ def summarize_review_csv(path: Path) -> dict[str, Any]:
         ),
     }
 
+
+def _escape_csv_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {key: _escape_csv_cell(value) for key, value in row.items()}
+
+
+def _escape_csv_cell(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    if value.startswith(("=", "+", "-", "@")):
+        return f"'{value}"
+    return value
