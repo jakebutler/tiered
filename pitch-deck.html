@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tiered Pitch Deck</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: oklch(13% 0.012 276);
+        --canvas: oklch(99% 0.004 276);
+        --canvas-soft: oklch(94% 0.004 276);
+        --canvas-dark: oklch(12% 0.055 276);
+        --surface-dark: oklch(24% 0.028 276);
+        --on-dark: oklch(98% 0.004 276);
+        --muted: oklch(62% 0.004 276);
+        --muted-dark: oklch(76% 0.018 276);
+        --orange: oklch(65% 0.22 38);
+        --magenta: oklch(65% 0.27 340);
+        --periwinkle: oklch(82% 0.105 290);
+        --mint: oklch(92% 0.07 205);
+        --hairline: oklch(88% 0.004 276);
+        --hairline-dark: oklch(34% 0.026 276);
+        --deck-width: 1280px;
+        --radius: 4px;
+        --font-display:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        --font-mono:
+          "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono",
+          monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: var(--font-display);
+        overflow-x: hidden;
+      }
+
+      .deck-nav {
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        z-index: 20;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        transform: translateX(-50%);
+        padding: 6px;
+        background: var(--canvas-dark);
+        border: 1px solid var(--hairline-dark);
+        border-radius: 4px;
+      }
+
+      .deck-nav a {
+        width: 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        color: var(--on-dark);
+        text-decoration: none;
+        border-radius: 3px;
+        font: 500 11px / 1 var(--font-mono);
+      }
+
+      .deck-nav a:hover,
+      .deck-nav a:focus {
+        background: var(--surface-dark);
+        outline: none;
+      }
+
+      .slide {
+        min-height: 100svh;
+        padding: clamp(60px, 6vw, 76px) clamp(20px, 4vw, 44px)
+          clamp(24px, 3vw, 40px);
+        scroll-snap-align: start;
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      main {
+        scroll-snap-type: y proximity;
+      }
+
+      .slide.dark {
+        background:
+          linear-gradient(180deg, color-mix(in oklch, var(--canvas-dark), var(--ink) 10%), var(--canvas-dark)),
+          var(--canvas-dark);
+        color: var(--on-dark);
+      }
+
+      .slide.light {
+        background: var(--canvas);
+        color: var(--ink);
+      }
+
+      .inner {
+        width: min(100%, var(--deck-width));
+        margin: 0 auto;
+      }
+
+      .eyebrow,
+      .label,
+      .kicker,
+      .chip,
+      th,
+      .metric-label {
+        font-family: var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1;
+      }
+
+      .dark .eyebrow {
+        color: var(--muted-dark);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 780px;
+        margin-bottom: 20px;
+        font-size: clamp(46px, 6vw, 82px);
+        font-weight: 500;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .product-name {
+        display: block;
+        margin-bottom: 2px;
+        font-size: clamp(70px, 9vw, 124px);
+        line-height: 0.88;
+      }
+
+      h2 {
+        max-width: 900px;
+        margin-bottom: 18px;
+        font-size: clamp(34px, 4vw, 54px);
+        font-weight: 500;
+        line-height: 1.04;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin-bottom: 10px;
+        font-size: clamp(20px, 2vw, 26px);
+        font-weight: 500;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .lead {
+        max-width: 780px;
+        color: var(--muted);
+        font-size: clamp(17px, 1.6vw, 21px);
+        line-height: 1.3;
+      }
+
+      .dark .lead,
+      .dark .muted {
+        color: var(--muted-dark);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .hero-grid,
+      .two-col {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: clamp(28px, 5vw, 60px);
+        align-items: center;
+      }
+
+      .ribbon-stage {
+        position: relative;
+        min-height: 340px;
+        isolation: isolate;
+      }
+
+      .ribbon {
+        position: absolute;
+        inset: 6% 0 auto 8%;
+        height: 260px;
+        border-radius: 48% 52% 45% 55%;
+        background:
+          radial-gradient(circle at 20% 48%, color-mix(in oklch, var(--orange) 92%, transparent), transparent 34%),
+          radial-gradient(circle at 54% 42%, color-mix(in oklch, var(--magenta) 90%, transparent), transparent 36%),
+          radial-gradient(circle at 80% 56%, color-mix(in oklch, var(--periwinkle) 94%, transparent), transparent 38%),
+          linear-gradient(110deg, var(--orange), var(--magenta), var(--periwinkle));
+        filter: saturate(1.06);
+        transform: rotate(-9deg) skewX(-10deg);
+      }
+
+      .ribbon::before,
+      .ribbon::after {
+        content: "";
+        position: absolute;
+        border: 1px solid color-mix(in oklch, var(--on-dark) 25%, transparent);
+        border-radius: inherit;
+      }
+
+      .ribbon::before {
+        inset: 34px 40px;
+        transform: rotate(12deg);
+      }
+
+      .ribbon::after {
+        inset: 74px 92px;
+        transform: rotate(-18deg);
+      }
+
+      .ribbon-card {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: min(410px, 88%);
+        padding: 18px;
+        background: color-mix(in oklch, var(--surface-dark) 92%, transparent);
+        border: 1px solid var(--hairline-dark);
+        border-radius: var(--radius);
+      }
+
+      .ribbon-card code {
+        display: block;
+        color: var(--on-dark);
+        font: 400 11px / 1.45 var(--font-mono);
+        white-space: pre-wrap;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 22px;
+      }
+
+      .chip {
+        padding: 7px 10px;
+        border-radius: var(--radius);
+        border: 1px solid color-mix(in oklch, var(--on-dark) 16%, transparent);
+        color: var(--on-dark);
+        background: var(--surface-dark);
+        font-size: 11px;
+        line-height: 1;
+      }
+
+      .light .chip {
+        color: var(--ink);
+        background: var(--canvas);
+        border-color: var(--hairline);
+      }
+
+      .problem-grid,
+      .metric-grid,
+      .domain-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 28px;
+      }
+
+      .domain-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .card,
+      .dark-card,
+      .metric,
+      .domain {
+        border-radius: var(--radius);
+        padding: 20px;
+      }
+
+      .card {
+        border: 1px solid var(--hairline);
+        background: var(--canvas);
+      }
+
+      .dark-card {
+        border: 1px solid var(--hairline-dark);
+        background: var(--surface-dark);
+      }
+
+      .card p,
+      .dark-card p,
+      .metric p,
+      .domain p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.32;
+      }
+
+      .dark-card p {
+        color: var(--muted-dark);
+      }
+
+      .label {
+        display: block;
+        margin-bottom: 14px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .dark .label {
+        color: var(--muted-dark);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 30px;
+      }
+
+      .flow-step {
+        position: relative;
+        min-height: 168px;
+        padding: 16px;
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius);
+        background: var(--canvas);
+      }
+
+      .flow-step::after {
+        content: "";
+        position: absolute;
+        top: 42px;
+        right: -11px;
+        width: 10px;
+        height: 1px;
+        background: var(--hairline);
+      }
+
+      .flow-step:last-child::after {
+        display: none;
+      }
+
+      .step-num {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        margin-bottom: 14px;
+        border-radius: 50%;
+        color: var(--ink);
+        background: linear-gradient(135deg, var(--orange), var(--magenta), var(--periwinkle));
+        font: 500 11px / 1 var(--font-mono);
+      }
+
+      .flow-step strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 17px;
+        font-weight: 500;
+        line-height: 1.15;
+      }
+
+      .flow-step span {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.28;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 28px;
+      }
+
+      .run-table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius);
+        background: var(--canvas);
+      }
+
+      .run-table th,
+      .run-table td {
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--hairline);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .run-table th {
+        color: var(--muted);
+        background: var(--canvas-soft);
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .run-table td {
+        font-size: 14px;
+        line-height: 1.25;
+      }
+
+      .run-table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .tier {
+        display: inline-flex;
+        min-width: 38px;
+        justify-content: center;
+        padding: 4px 7px;
+        border-radius: var(--radius);
+        color: var(--ink);
+        background: var(--mint);
+        font: 500 11px / 1 var(--font-mono);
+      }
+
+      .tier.t2 {
+        background: color-mix(in oklch, var(--periwinkle) 72%, var(--canvas));
+      }
+
+      .tier.t3 {
+        background: var(--canvas-soft);
+      }
+
+      .metric {
+        background: var(--mint);
+        color: var(--ink);
+      }
+
+      .metric:nth-child(2) {
+        background: color-mix(in oklch, var(--periwinkle) 72%, var(--canvas));
+      }
+
+      .metric:nth-child(3) {
+        background: color-mix(in oklch, var(--orange) 18%, var(--canvas));
+      }
+
+      .metric-value {
+        display: block;
+        margin-bottom: 12px;
+        font-size: clamp(34px, 3.8vw, 48px);
+        font-weight: 500;
+        line-height: 1;
+      }
+
+      .metric-label {
+        display: block;
+        margin-bottom: 14px;
+        color: color-mix(in oklch, var(--ink) 76%, transparent);
+        font-size: 11px;
+      }
+
+      .domain {
+        min-height: 160px;
+        border: 1px solid var(--hairline-dark);
+        background: color-mix(in oklch, var(--canvas-dark) 80%, var(--surface-dark));
+      }
+
+      .domain strong {
+        display: block;
+        margin-bottom: 14px;
+        color: var(--on-dark);
+        font-size: 19px;
+        font-weight: 500;
+        line-height: 1.12;
+      }
+
+      .domain p {
+        color: var(--muted-dark);
+        font-size: 14px;
+      }
+
+      .callout {
+        margin-top: 28px;
+        padding: 22px;
+        border-radius: var(--radius);
+        background:
+          linear-gradient(110deg, color-mix(in oklch, var(--orange) 74%, transparent), color-mix(in oklch, var(--magenta) 70%, transparent), color-mix(in oklch, var(--periwinkle) 76%, transparent)),
+          var(--periwinkle);
+        color: var(--ink);
+      }
+
+      .callout p {
+        max-width: 930px;
+        margin: 0;
+        font-size: clamp(24px, 2.6vw, 34px);
+        font-weight: 500;
+        line-height: 1.08;
+      }
+
+      .demo-frame {
+        margin-top: 28px;
+        border: 1px solid var(--hairline-dark);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--surface-dark);
+      }
+
+      .demo-head {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: center;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--hairline-dark);
+        font: 500 11px / 1 var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted-dark);
+      }
+
+      .demo-body {
+        display: grid;
+        grid-template-columns: 0.95fr 1.05fr;
+        gap: 0;
+      }
+
+      .demo-pane {
+        padding: 20px;
+      }
+
+      .demo-pane + .demo-pane {
+        border-left: 1px solid var(--hairline-dark);
+      }
+
+      .demo-pane h3 {
+        color: var(--on-dark);
+      }
+
+      .source-list {
+        display: grid;
+        gap: 8px;
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .source-list li {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px;
+        border-radius: var(--radius);
+        background: color-mix(in oklch, var(--canvas-dark) 62%, var(--surface-dark));
+        color: var(--muted-dark);
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .brightdata-grid {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        gap: 20px;
+        align-items: stretch;
+        margin-top: 28px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .stack-row {
+        padding: 16px;
+        border-radius: var(--radius);
+        border: 1px solid var(--hairline);
+        background: var(--canvas);
+      }
+
+      .stack-row strong {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 17px;
+        font-weight: 500;
+      }
+
+      .stack-row span {
+        display: block;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.3;
+      }
+
+      .footer-mark {
+        position: absolute;
+        right: clamp(20px, 4vw, 48px);
+        bottom: 16px;
+        color: color-mix(in oklch, currentColor 22%, transparent);
+        font-size: clamp(40px, 6vw, 76px);
+        font-weight: 500;
+        line-height: 0.85;
+        pointer-events: none;
+      }
+
+      @media (max-width: 980px) {
+        .hero-grid,
+        .two-col,
+        .brightdata-grid,
+        .demo-body {
+          grid-template-columns: 1fr;
+        }
+
+        .ribbon-stage {
+          min-height: 340px;
+          order: -1;
+        }
+
+        .problem-grid,
+        .metric-grid,
+        .comparison {
+          grid-template-columns: 1fr;
+        }
+
+        .domain-grid,
+        .flow {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .flow-step::after,
+        .demo-pane + .demo-pane {
+          display: none;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .deck-nav {
+          top: auto;
+          bottom: 12px;
+          max-width: calc(100vw - 24px);
+          overflow-x: auto;
+        }
+
+        .slide {
+          padding-top: 54px;
+          align-items: flex-start;
+        }
+
+        h1 {
+          font-size: clamp(44px, 14vw, 64px);
+        }
+
+        h2 {
+          font-size: clamp(34px, 11vw, 48px);
+        }
+
+        .domain-grid,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+
+        .ribbon {
+          height: 230px;
+        }
+
+        .ribbon-card {
+          width: 96%;
+        }
+
+        .footer-mark {
+          display: none;
+        }
+      }
+
+      @media print {
+        html {
+          scroll-behavior: auto;
+        }
+
+        body {
+          background: var(--canvas);
+        }
+
+        .deck-nav {
+          display: none;
+        }
+
+        .slide {
+          min-height: 7.5in;
+          page-break-after: always;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="deck-nav" aria-label="Slide navigation">
+      <a href="#slide-1">01</a>
+      <a href="#slide-2">02</a>
+      <a href="#slide-3">03</a>
+      <a href="#slide-4">04</a>
+      <a href="#slide-5">05</a>
+      <a href="#slide-6">06</a>
+      <a href="#slide-7">07</a>
+    </nav>
+
+    <main>
+      <section class="slide dark" id="slide-1">
+        <div class="inner hero-grid">
+          <div>
+            <p class="eyebrow">Bright Data build night / source authority layer</p>
+            <h1><span class="product-name">Tiered</span> makes web research agents source-aware before search.</h1>
+            <p class="lead">
+              A pre-SERP policy layer that decides what authoritative evidence means
+              for the claim, then guides Bright Data discovery toward those sources.
+            </p>
+            <div class="chips" aria-label="Core claims">
+              <span class="chip">Authority Coverage</span>
+              <span class="chip">Tiered SERP Queries</span>
+              <span class="chip">Evidence Substrate</span>
+            </div>
+          </div>
+          <div class="ribbon-stage" aria-hidden="true">
+            <div class="ribbon"></div>
+            <div class="ribbon-card">
+              <code>{
+  "claim_domain": "healthcare_drug_safety",
+  "tier_1": ["FDA label", "DailyMed", "manufacturer PI"],
+  "tier_2": ["NIH", "Mayo Clinic", "peer-reviewed journal"],
+  "tier_3": ["generic health explainers"]
+}</code>
+            </div>
+          </div>
+        </div>
+        <div class="footer-mark">tiered</div>
+      </section>
+
+      <section class="slide light" id="slide-2">
+        <div class="inner">
+          <p class="eyebrow">Problem</p>
+          <h2>Most agents search first and evaluate source quality later.</h2>
+          <p class="lead">
+            That creates fluent answers with weak evidence. The agent can cite pages,
+            but it often never asked which pages should count.
+          </p>
+          <div class="problem-grid">
+            <article class="card">
+              <span class="label">Failure mode 01</span>
+              <h3>Authority is implicit</h3>
+              <p>Search rankings are treated as a proxy for source authority, even when the claim domain demands primary records.</p>
+            </article>
+            <article class="card">
+              <span class="label">Failure mode 02</span>
+              <h3>Good sources are missed</h3>
+              <p>SEC filings, FDA labels, regulator pages, and journals often require targeted discovery rather than generic SERP queries.</p>
+            </article>
+            <article class="card">
+              <span class="label">Failure mode 03</span>
+              <h3>Confidence gets overloaded</h3>
+              <p>Provider confidence, model certainty, answer correctness, and source authority collapse into one vague signal.</p>
+            </article>
+          </div>
+          <div class="callout">
+            <p>Tiered improves source discipline.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide dark" id="slide-3">
+        <div class="inner">
+          <p class="eyebrow">Architecture</p>
+          <h2>Tiered turns the research question into source policy before discovery.</h2>
+          <p class="lead">
+            The policy is not a better prompt. It is an explicit artifact that shapes
+            search, collection, synthesis, and scoring.
+          </p>
+          <div class="flow">
+            <article class="flow-step">
+              <span class="step-num">01</span>
+              <strong>Research Question</strong>
+              <span>User asks a natural-language question that needs evidence.</span>
+            </article>
+            <article class="flow-step">
+              <span class="step-num">02</span>
+              <strong>Claim Domain</strong>
+              <span>Classify whether source authority means FDA, SEC, regulator, journal, or market source.</span>
+            </article>
+            <article class="flow-step">
+              <span class="step-num">03</span>
+              <strong>Source Authority Policy</strong>
+              <span>Define Tier 1, Tier 2, and Tier 3 source classes for the claim.</span>
+            </article>
+            <article class="flow-step">
+              <span class="step-num">04</span>
+              <strong>Tiered SERP Queries</strong>
+              <span>Generate targeted Bright Data searches for each tier.</span>
+            </article>
+            <article class="flow-step">
+              <span class="step-num">05</span>
+              <strong>Evidence Substrate</strong>
+              <span>Fetch pages, preserve metadata, synthesize with tier-labeled citations.</span>
+            </article>
+          </div>
+        </div>
+        <div class="footer-mark">policy → search</div>
+      </section>
+
+      <section class="slide light" id="slide-4">
+        <div class="inner">
+          <p class="eyebrow">Healthcare vertical</p>
+          <h2>Start where the cost of weak sourcing is obvious.</h2>
+          <p class="lead">
+            Healthcare drug indication and safety claims give the demo a crisp source hierarchy:
+            labels and regulators first, reputable medical context second, summaries last.
+          </p>
+          <div class="comparison">
+            <table class="run-table" aria-label="Healthcare source tiers">
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Healthcare source class</th>
+                  <th>Role</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="tier">T1</span></td>
+                  <td>FDA label, DailyMed, manufacturer prescribing information</td>
+                  <td>Primary authority for indication, dosage, warnings, contraindications.</td>
+                </tr>
+                <tr>
+                  <td><span class="tier t2">T2</span></td>
+                  <td>NIH, MedlinePlus, Mayo Clinic, peer-reviewed journals</td>
+                  <td>Clinical context, patient-facing confirmation, study-backed explanation.</td>
+                </tr>
+                <tr>
+                  <td><span class="tier t3">T3</span></td>
+                  <td>Generic health blogs, SEO summaries, forums</td>
+                  <td>Discovery only. Should not carry substantive claims alone.</td>
+                </tr>
+              </tbody>
+            </table>
+            <article class="card">
+              <span class="label">Example question</span>
+              <h3>What is Ozempic prescribed for, and what are its major warnings?</h3>
+              <p>
+                Baseline search may land on broad explainers. Tiered search explicitly
+                targets FDA and label sources before allowing contextual medical pages.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide dark" id="slide-5">
+        <div class="inner">
+          <p class="eyebrow">Demo flow</p>
+          <h2>Show the same question, two evidence paths.</h2>
+          <p class="lead">
+            The live demo is a side-by-side comparison. The answer is less important
+            than the visible change in evidence quality.
+          </p>
+          <div class="demo-frame">
+            <div class="demo-head">
+              <span>Question: What is a drug prescribed for, and what warnings matter?</span>
+              <span>Healthcare / drug safety</span>
+            </div>
+            <div class="demo-body">
+              <div class="demo-pane">
+                <h3>Baseline Run</h3>
+                <p class="muted">Ordinary SERP discovery, then source fetching.</p>
+                <ul class="source-list">
+                  <li><span class="tier t3">T3</span> Generic health article with broad summary.</li>
+                  <li><span class="tier t3">T3</span> SEO explainer with secondary citations.</li>
+                  <li><span class="tier t2">T2</span> Clinic page surfaced by ranking.</li>
+                </ul>
+              </div>
+              <div class="demo-pane">
+                <h3>Tiered Run</h3>
+                <p class="muted">Policy-guided SERP discovery, then tier-aware synthesis.</p>
+                <ul class="source-list">
+                  <li><span class="tier">T1</span> FDA label or DailyMed prescribing information.</li>
+                  <li><span class="tier">T1</span> Manufacturer prescribing information.</li>
+                  <li><span class="tier t2">T2</span> NIH or reputable medical context.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footer-mark">baseline / tiered</div>
+      </section>
+
+      <section class="slide light" id="slide-6">
+        <div class="inner">
+          <p class="eyebrow">Validation</p>
+          <h2>Measure the evidence substrate, not just the prose.</h2>
+          <p class="lead">
+            The benchmark runs Baseline and Tiered over automated synthetic questions.
+            The primary metric is Authority Coverage: how much of the answer is supported
+            by acceptable Tier 1 or Tier 2 citations.
+          </p>
+          <div class="metric-grid">
+            <article class="metric">
+              <span class="metric-label">Primary metric</span>
+              <span class="metric-value">T1/T2</span>
+              <p>Authority Coverage across substantive answer claims.</p>
+            </article>
+            <article class="metric">
+              <span class="metric-label">Benchmark plan</span>
+              <span class="metric-value">100</span>
+              <p>Synthetic questions, 20 per claim domain, automated labels for demo pass.</p>
+            </article>
+            <article class="metric">
+              <span class="metric-label">Secondary signals</span>
+              <span class="metric-value">4</span>
+              <p>Unsupported claims, missing-Tier-1 honesty, citation appropriateness, cost/latency.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide dark" id="slide-7">
+        <div class="inner">
+          <p class="eyebrow">Why this helps Bright Data</p>
+          <h2>Tiered makes Bright Data the evidence engine for agentic research quality.</h2>
+          <div class="brightdata-grid">
+            <div>
+              <p class="lead">
+                Bright Data already gives agents deterministic search and page retrieval.
+                Tiered adds the missing control plane: source authority policy, targeted
+                discovery, and measurable evidence quality.
+              </p>
+              <div class="chips">
+                <span class="chip">More intentional SERP usage</span>
+                <span class="chip">Better source fetch targets</span>
+                <span class="chip">Demo-ready benchmark</span>
+              </div>
+            </div>
+            <div class="stack">
+              <div class="stack-row">
+                <strong>For developers</strong>
+                <span>A reusable pattern for agents that need citations users can trust.</span>
+              </div>
+              <div class="stack-row">
+                <strong>For Bright Data</strong>
+                <span>A sharper story than scraping alone: evidence quality improves when source policy guides discovery.</span>
+              </div>
+              <div class="stack-row">
+                <strong>For the demo</strong>
+                <span>Run one question or a benchmark, then show the Authority Coverage delta.</span>
+              </div>
+            </div>
+          </div>
+          <div class="callout">
+            <p>Search first answers what ranked. Tiered asks what should count.</p>
+          </div>
+        </div>
+        <div class="footer-mark">tiered</div>
+      </section>
+    </main>
+
+    <script>
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      function currentSlideIndex() {
+        const midline = window.scrollY + window.innerHeight / 2;
+        return slides.reduce((closest, slide, index) => {
+          const distance = Math.abs(slide.offsetTop + slide.offsetHeight / 2 - midline);
+          return distance < closest.distance ? { index, distance } : closest;
+        }, { index: 0, distance: Infinity }).index;
+      }
+
+      window.addEventListener("keydown", (event) => {
+        const nextKeys = ["ArrowRight", "ArrowDown", "PageDown", " "];
+        const prevKeys = ["ArrowLeft", "ArrowUp", "PageUp"];
+        if (![...nextKeys, ...prevKeys, "Home", "End"].includes(event.key)) return;
+
+        event.preventDefault();
+        let target = currentSlideIndex();
+        if (nextKeys.includes(event.key)) target += 1;
+        if (prevKeys.includes(event.key)) target -= 1;
+        if (event.key === "Home") target = 0;
+        if (event.key === "End") target = slides.length - 1;
+        slides[clamp(target, 0, slides.length - 1)].scrollIntoView({ behavior: "smooth" });
+      });
+    </script>
+  </body>
+</html>
